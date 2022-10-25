@@ -29,4 +29,5 @@ urlpatterns = [
         name='api-swagger'
     ),
     path('api/user', include('user.urls')),
+    path('api/recepie/', include('recepie.urls'))
 ]
