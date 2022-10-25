@@ -9,11 +9,17 @@ from rest_framework.test import APIClient
 
 from core.models import Recepie
 
-from recepie.serializers import RecepieSerializer
+from recepie.serializers import (
+    RecepieSerializer,
+    RecepieDetailSerializer,
+)
 
 
 RECEPIE_URL = reverse('recepie:recepie-list')
 
+
+def detail_url(recepie_id):
+    return reverse('recepie:recepie-detail', args=[recepie_id])
 
 def create_recepie(user, **params):
     defaults = {
@@ -75,4 +81,13 @@ class PrivateRecepieAPITest(TestCase):
         recepies = Recepie.objects.filter(user=self.user)
         serializer = RecepieSerializer(recepies, many=True)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data, serializer.data)
+
+    def test_get_recepie_detail(self):
+        recepie = create_recepie(user=self.user)
+
+        url = detail_url(recepie.id)
+        res = self.client.get(url)
+
+        serializer = RecepieDetailSerializer(recepie)
         self.assertEqual(res.data, serializer.data)
