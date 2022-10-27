@@ -8,6 +8,7 @@ from recepie import views
 
 router = DefaultRouter()
 router.register('recepies', views.RecepieViewSet)
+router.register('tags', views.TagViewSet)
 
 app_name = 'recepie'
 

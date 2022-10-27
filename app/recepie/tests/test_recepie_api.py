@@ -7,7 +7,10 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from core.models import Recepie
+from core.models import (
+    Recepie,
+    Tag,
+)
 
 from recepie.serializers import (
     RecepieSerializer,
@@ -184,3 +187,87 @@ class PrivateRecepieAPITest(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
         self.assertTrue(Recepie.objects.filter(id=recepie.id).exists())
+
+    def test_create_recepie_with_new_tags(self):
+        payload = {
+            'title': 'Curry',
+            'link': 'https://example.com/curry.pdf',
+            'time_minutes': 20,
+            'price': Decimal('2.50'),
+            'tags': [{'name': 'Thai'}, {'name': 'Dinner'}]
+        }
+
+        res = self.client.post(RECEPIE_URL, payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        recepies = Recepie.objects.filter(user=self.user)
+        self.assertEqual(recepies.count(), 1)
+        recepie = recepies[0]
+        self.assertEqual(recepie.tags.count(), 2)
+        for tag in payload['tags']:
+            exists = recepie.tags.filter(
+                name=tag['name'],
+                user=self.user,
+            ).exists()
+            self.assertTrue(exists)
+
+    def test_create_recepie_with_existing_tags(self):
+        tag_indian = Tag.objects.create(user=self.user, name='Indian')
+        payload = {
+            'title': 'Pongal',
+            'time_minutes': 60,
+            'price': Decimal('4.50'),
+            'tags': [{'name': 'Indian'}, {'name': 'Brakefast'}],
+        }
+        res = self.client.post(RECEPIE_URL, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        recepies = Recepie.objects.filter(user=self.user)
+        self.assertEqual(recepies.count(), 1)
+        recepie = recepies[0]
+        self.assertEqual(recepie.tags.count(), 2)
+        self.assertIn(tag_indian, recepie.tags.all())
+        for tag in payload['tags']:
+            exists = recepie.tags.filter(
+                name=tag['name'],
+                user=self.user,
+            ).exists()
+            self.assertTrue(exists)
+
+    def test_create_tag_on_update(self):
+        recepie = create_recepie(user=self.user)
+        payload = {
+            'tags': [{'name': 'Indian'}, {'name': 'Brakefast'}],
+        }
+        url = detail_url(recepie.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        new_tag = Tag.objects.filter(user=self.user)
+        self.assertEqual(new_tag[0], recepie.tags.first())
+
+    def test_update_recepie_assign_tag(self):
+        tag_breakfast = Tag.objects.create(user=self.user, name='Brakefast')
+        recepie = create_recepie(user=self.user)
+        recepie.tags.add(tag_breakfast)
+
+        tag_lunch = Tag.objects.create(user=self.user, name='Lunch')
+        payload = {'tags': [{'name': 'Lunch'}]}
+        url = detail_url(recepie.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn(tag_lunch, recepie.tags.all())
+        self.assertNotIn(tag_breakfast, recepie.tags.all())
+
+    def test_clear_recepie_tags(self):
+        tag_breakfast = Tag.objects.create(user=self.user, name='Brakefast')
+        recepie = create_recepie(user=self.user)
+        recepie.tags.add(tag_breakfast)
+
+        payload = {'tags': []}
+        url = detail_url(recepie.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertNotIn(tag_breakfast, recepie.tags.all())
+        self.assertEqual(recepie.tags.count(), 0)
