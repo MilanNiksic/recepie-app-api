@@ -2,6 +2,7 @@ from rest_framework import serializers
 from core.models import (
     Recepie,
     Tag,
+    Ingridient,
 )
 
 
@@ -9,6 +10,14 @@ class TagSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tag
+        fields = ['id', 'name']
+        read_only_fields = ['id']
+
+
+class IngridientSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Ingridient
         fields = ['id', 'name']
         read_only_fields = ['id']
 
