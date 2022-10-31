@@ -8,6 +8,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from core.models import (
+    Ingridient,
     Recepie,
     Tag,
 )
@@ -271,3 +272,99 @@ class PrivateRecepieAPITest(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertNotIn(tag_breakfast, recepie.tags.all())
         self.assertEqual(recepie.tags.count(), 0)
+
+    def test_create_recepie_with_new_ingridients(self):
+        payload = {
+            'title': 'Curry',
+            'link': 'https://example.com/curry.pdf',
+            'time_minutes': 20,
+            'price': Decimal('2.50'),
+            'ingridients': [{'name': 'Salt'}, {'name': 'Pepper'}]
+        }
+
+        res = self.client.post(RECEPIE_URL, payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        recepies = Recepie.objects.filter(user=self.user)
+        self.assertEqual(recepies.count(), 1)
+        recepie = recepies[0]
+        self.assertEqual(recepie.ingridients.count(), 2)
+        for ingridient in payload['ingridients']:
+            exists = recepie.ingridients.filter(
+                name=ingridient['name'],
+                user=self.user,
+            ).exists()
+            self.assertTrue(exists)
+
+    def test_create_recepie_with_existing_ingridients(self):
+        ingridient_potatoe = Ingridient.objects.create(
+            user=self.user,
+            name='Potatoe'
+        )
+        payload = {
+            'title': 'Pongal',
+            'time_minutes': 60,
+            'price': Decimal('4.50'),
+            'ingridients': [{'name': 'Potatoe'}, {'name': 'Pepper'}],
+        }
+        res = self.client.post(RECEPIE_URL, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        recepies = Recepie.objects.filter(user=self.user)
+        self.assertEqual(recepies.count(), 1)
+        recepie = recepies[0]
+        self.assertEqual(recepie.ingridients.count(), 2)
+        self.assertIn(ingridient_potatoe, recepie.ingridients.all())
+        for ingridient in payload['ingridients']:
+            exists = recepie.ingridients.filter(
+                name=ingridient['name'],
+                user=self.user,
+            ).exists()
+            self.assertTrue(exists)
+
+    def test_create_ingridient_on_update(self):
+        recepie = create_recepie(user=self.user)
+        payload = {
+            'ingridients': [{'name': 'Salt'}, {'name': 'Pepper'}],
+        }
+        url = detail_url(recepie.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        new_ingridient = Ingridient.objects.filter(user=self.user)
+        self.assertEqual(new_ingridient[0], recepie.ingridients.first())
+
+    def test_update_recepie_assign_ingridient(self):
+        ingridient_pepper = Ingridient.objects.create(
+            user=self.user,
+            name='Pepper'
+        )
+        recepie = create_recepie(user=self.user)
+        recepie.ingridients.add(ingridient_pepper)
+
+        ingridient_salt = Ingridient.objects.create(
+            user=self.user,
+            name='Salt'
+        )
+        payload = {'ingridients': [{'name': 'Salt'}]}
+        url = detail_url(recepie.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn(ingridient_salt, recepie.ingridients.all())
+        self.assertNotIn(ingridient_pepper, recepie.ingridients.all())
+
+    def test_clear_recepie_ingridients(self):
+        ingridient_pepper = Ingridient.objects.create(
+            user=self.user,
+            name='Pepper'
+        )
+        recepie = create_recepie(user=self.user)
+        recepie.ingridients.add(ingridient_pepper)
+
+        payload = {'ingridients': []}
+        url = detail_url(recepie.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertNotIn(ingridient_pepper, recepie.ingridients.all())
+        self.assertEqual(recepie.ingridients.count(), 0)
