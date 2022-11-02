@@ -83,4 +83,13 @@ class RecepieSerializer(serializers.ModelSerializer):
 class RecepieDetailSerializer(RecepieSerializer):
 
     class Meta(RecepieSerializer.Meta):
-        fields = RecepieSerializer.Meta.fields + ['description']
+        fields = RecepieSerializer.Meta.fields + ['description', 'image']
+
+
+class RecepieImageSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Recepie
+        fields = ['id', 'image']
+        read_only_fields = ['id']
+        extra_kwargs = {'image': {'required': 'True'}}
