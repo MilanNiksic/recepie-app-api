@@ -378,6 +378,48 @@ class PrivateRecepieAPITest(TestCase):
         self.assertNotIn(ingridient_pepper, recepie.ingridients.all())
         self.assertEqual(recepie.ingridients.count(), 0)
 
+    def test_filter_by_tags(self):
+        r1 = create_recepie(user=self.user, title='Thai vegetable Curry')
+        r2 = create_recepie(user=self.user, title='Aubergine with Tahini')
+        tag1 = Tag.objects.create(user=self.user, name='Vegan')
+        tag2 = Tag.objects.create(user=self.user, name='Vegeterian')
+        r1.tags.add(tag1)
+        r2.tags.add(tag2)
+        r3 = create_recepie(user=self.user, title='Fish and chips')
+
+        params = {'tags': f'{tag1.id}, {tag2.id}'}
+        res = self.client.get(RECEPIE_URL, params)
+
+        s1 = RecepieSerializer(r1)
+        s2 = RecepieSerializer(r2)
+        s3 = RecepieSerializer(r3)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn(s1.data, res.data)
+        self.assertIn(s2.data, res.data)
+        self.assertNotIn(s3.data, res.data)
+
+    def test_filter_by_ingridients(self):
+        r1 = create_recepie(user=self.user, title='Thai vegetable Curry')
+        r2 = create_recepie(user=self.user, title='Aubergine with Tahini')
+        ing1 = Ingridient.objects.create(user=self.user, name='Fetta cheese')
+        ing2 = Ingridient.objects.create(user=self.user, name='Chicken')
+        r1.ingridients.add(ing1)
+        r2.ingridients.add(ing2)
+        r3 = create_recepie(user=self.user, title='Fish and chips')
+
+        params = {'ingridients': f'{ing1.id}, {ing2.id}'}
+        res = self.client.get(RECEPIE_URL, params)
+
+        s1 = RecepieSerializer(r1)
+        s2 = RecepieSerializer(r2)
+        s3 = RecepieSerializer(r3)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn(s1.data, res.data)
+        self.assertIn(s2.data, res.data)
+        self.assertNotIn(s3.data, res.data)
+
 
 class ImageUploadTests(TestCase):
 
